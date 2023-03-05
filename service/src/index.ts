@@ -5,6 +5,8 @@ import { chatConfig, chatReply, chatReplyProcess } from './chatgpt'
 const app = express()
 const router = express.Router()
 
+const keyMap = new Map()
+
 app.use(express.static('public'))
 app.use(express.json())
 
@@ -49,6 +51,16 @@ router.post('/config', async (req, res) => {
   try {
     const response = await chatConfig()
     res.send(response)
+  }
+  catch (error) {
+    res.send(error)
+  }
+})
+
+router.post('/keyLogin', async (req, res) => {
+  try {
+    const { key } = req.body as { key: string }
+    
   }
   catch (error) {
     res.send(error)

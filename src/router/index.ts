@@ -2,18 +2,36 @@ import type { App } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { ChatLayout } from '@/views/chat/layout'
+import Login from '@/views/login/index.vue'
 
 const routes: RouteRecordRaw[] = [
+  // {
+  //   path: '/',
+  //   name: 'Root',
+  //   component: ChatLayout,
+  //   redirect: '/chat',
+  //   children: [
+  //     {
+  //       path: '/chat/:uuid?',
+  //       name: 'Chat',
+  //       component: () => import('@/views/chat/index.vue'),
+  //     },
+  //   ],
+  // },
   {
     path: '/',
-    name: 'Root',
+    name: 'login',
+    component: Login,
+  },
+  {
+    path: '/chat',
     component: ChatLayout,
-    redirect: '/chat',
     children: [
       {
-        path: '/chat/:uuid?',
+        path: '/:uuid?',
         name: 'Chat',
         component: () => import('@/views/chat/index.vue'),
+        props:{ newsletterPopup: false}
       },
     ],
   },

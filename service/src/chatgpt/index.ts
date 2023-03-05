@@ -8,58 +8,67 @@ import { sendResponse } from '../utils'
 import type { ApiModel, ChatContext, ChatGPTAPIOptions, ChatGPTUnofficialProxyAPIOptions, ModelConfig } from '../types'
 
 dotenv.config()
-
 const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT_MS : 30 * 1000
 
-let apiModel: ApiModel
+// let apiModel: ApiModel
 
-if (!process.env.OPENAI_API_KEY && !process.env.OPENAI_ACCESS_TOKEN)
-  throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
-
-let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
+// if (!process.env.OPENAI_API_KEY && !process.env.OPENAI_ACCESS_TOKEN)
+//   throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
+// let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 
 // To use ESM in CommonJS, you can use a dynamic import
-(async () => {
-  // More Info: https://github.com/transitive-bullshit/chatgpt-api
+// (async () => {
 
-  if (process.env.OPENAI_API_KEY) {
-    const options: ChatGPTAPIOptions = {
-      apiKey: process.env.OPENAI_API_KEY,
-      debug: false,
-    }
+//   if (process.env.OPENAI_API_KEY) {
+//     const options: ChatGPTAPIOptions = {
+//       apiKey: process.env.OPENAI_API_KEY,
+//       debug: false,
+//     }
 
-    api = new ChatGPTAPI({ ...options })
-    apiModel = 'ChatGPTAPI'
+//     api = new ChatGPTAPI({ ...options })
+//     apiModel = 'ChatGPTAPI'
+//   }
+//   else {
+//     const options: ChatGPTUnofficialProxyAPIOptions = {
+//       accessToken: process.env.OPENAI_ACCESS_TOKEN,
+//       debug: false,
+//     }
+
+//     if (process.env.SOCKS_PROXY_HOST && process.env.SOCKS_PROXY_PORT) {
+//       const agent = new SocksProxyAgent({
+//         hostname: process.env.SOCKS_PROXY_HOST,
+//         port: process.env.SOCKS_PROXY_PORT,
+//       })
+//       options.fetch = (url, options) => {
+//         return fetch(url, { agent, ...options })
+//       }
+//     }
+
+//     if (process.env.API_REVERSE_PROXY)
+//       options.apiReverseProxyUrl = process.env.API_REVERSE_PROXY
+
+//     api = new ChatGPTUnofficialProxyAPI({
+//       accessToken: process.env.OPENAI_ACCESS_TOKEN,
+//       ...options,
+//     })
+//     apiModel = 'ChatGPTUnofficialProxyAPI'
+//   }
+// })()
+
+async function getApi(apiKey:any) {
+  
+  const options: ChatGPTAPIOptions = {
+    apiKey: apiKey,
+    debug: false,
   }
-  else {
-    const options: ChatGPTUnofficialProxyAPIOptions = {
-      accessToken: process.env.OPENAI_ACCESS_TOKEN,
-      debug: false,
-    }
 
-    if (process.env.SOCKS_PROXY_HOST && process.env.SOCKS_PROXY_PORT) {
-      const agent = new SocksProxyAgent({
-        hostname: process.env.SOCKS_PROXY_HOST,
-        port: process.env.SOCKS_PROXY_PORT,
-      })
-      options.fetch = (url, options) => {
-        return fetch(url, { agent, ...options })
-      }
-    }
-
-    if (process.env.API_REVERSE_PROXY)
-      options.apiReverseProxyUrl = process.env.API_REVERSE_PROXY
-
-    api = new ChatGPTUnofficialProxyAPI({
-      accessToken: process.env.OPENAI_ACCESS_TOKEN,
-      ...options,
-    })
-    apiModel = 'ChatGPTUnofficialProxyAPI'
-  }
-})()
+  const api = new ChatGPTAPI({ ...options })
+  return api
+}
 
 async function chatReply(
   message: string,
+  api:ChatGPTAPI,
   lastContext?: { conversationId?: string; parentMessageId?: string },
 ) {
   if (!message)
@@ -82,6 +91,7 @@ async function chatReply(
 
 async function chatReplyProcess(
   message: string,
+  api:ChatGPTAPI,
   lastContext?: { conversationId?: string; parentMessageId?: string },
   process?: (chat: ChatMessage) => void,
 ) {
@@ -112,7 +122,7 @@ async function chatConfig() {
   return sendResponse({
     type: 'Success',
     data: {
-      apiModel,
+      apiModel:"ChatGPTAPI",
       reverseProxy: process.env.API_REVERSE_PROXY,
       timeoutMs,
       socksProxy: (process.env.SOCKS_PROXY_HOST && process.env.SOCKS_PROXY_PORT) ? (`${process.env.SOCKS_PROXY_HOST}:${process.env.SOCKS_PROXY_PORT}`) : '-',
@@ -122,4 +132,4 @@ async function chatConfig() {
 
 export type { ChatContext, ChatMessage }
 
-export { chatReply, chatReplyProcess, chatConfig }
+export { chatReply, chatReplyProcess, chatConfig,getApi }

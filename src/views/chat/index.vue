@@ -11,6 +11,22 @@ import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useChatStore } from '@/store'
 import { fetchChatAPIProcess } from '@/api'
 import { t } from '@/locales'
+import { router } from '@/router'
+
+const props = defineProps({
+  userName: String,
+  likes: Number
+})
+
+
+let chatUserInfo =  localStorage.getItem("chatUserInfo")
+console.log("props===",props,chatUserInfo)
+if(!chatUserInfo){
+router.push({ name: 'login'})
+}else{
+  chatUserInfo = JSON.parse(chatUserInfo)
+}
+
 
 let controller = new AbortController()
 
@@ -24,7 +40,9 @@ const { isMobile } = useBasicLayout()
 const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
 const { scrollRef, scrollToBottom } = useScroll()
 
-const { uuid } = route.params as { uuid: string }
+console.log(route.params)
+const { uuid,name,apiKey } = route.params as { uuid: string,name:string,apiKey:string }
+
 
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
 const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !item.error)))
@@ -33,6 +51,7 @@ const prompt = ref<string>('')
 const loading = ref<boolean>(false)
 
 function handleSubmit() {
+   console.log("onMounted====",route.params)
   onConversation()
 }
 
@@ -86,7 +105,10 @@ async function onConversation() {
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
-      options,
+      options:{
+        ...options,
+        apiKey:chatUserInfo.apiKey
+      },
       signal: controller.signal,
       onDownloadProgress: ({ event }) => {
         const xhr = event.target
@@ -203,7 +225,10 @@ async function onRegenerate(index: number) {
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
-      options,
+      options:{
+        ...options,
+        apiKey:chatUserInfo.apiKey
+      },
       signal: controller.signal,
       onDownloadProgress: ({ event }) => {
         const xhr = event.target
@@ -340,6 +365,7 @@ const footerClass = computed(() => {
 
 onMounted(() => {
   scrollToBottom()
+  console.log("onMounted====",route.params)
 })
 
 onUnmounted(() => {
@@ -360,7 +386,7 @@ onUnmounted(() => {
         <template v-if="!dataSources.length">
           <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
             <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
-            <span>Aha~</span>
+            <span>好久不见~</span>
           </div>
         </template>
         <template v-else>

@@ -3,6 +3,7 @@ import type { FetchFn, openai } from 'chatgpt'
 export interface ChatContext {
   conversationId?: string
   parentMessageId?: string
+  apiKey:string
 }
 
 export interface ChatGPTAPIOptions {

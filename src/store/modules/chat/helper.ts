@@ -9,6 +9,7 @@ export function defaultState(): Chat.ChatState {
 
 export function getLocalState(): Chat.ChatState {
   const localState = ss.get(LOCAL_NAME)
+  console.log("localstate===",localState)
   return localState ?? defaultState()
 }
 

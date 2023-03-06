@@ -9,9 +9,10 @@ import { useCopyCode } from './hooks/useCopyCode'
 import { HoverButton, SvgIcon } from '@/components/common'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useChatStore } from '@/store'
-import { fetchChatAPIProcess } from '@/api'
+import { fetchChatAPIProcess,rejectApikey } from '@/api'
 import { t } from '@/locales'
 import { router } from '@/router'
+import { userInfo } from 'os'
 
 const props = defineProps({
   userName: String,
@@ -51,7 +52,6 @@ const prompt = ref<string>('')
 const loading = ref<boolean>(false)
 
 function handleSubmit() {
-   console.log("onMounted====",route.params)
   onConversation()
 }
 
@@ -366,6 +366,9 @@ const footerClass = computed(() => {
 onMounted(() => {
   scrollToBottom()
   console.log("onMounted====",route.params)
+  rejectApikey(chatUserInfo.apiKey).then(res=>{
+    console.log(res)
+  })
 })
 
 onUnmounted(() => {

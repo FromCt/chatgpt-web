@@ -33,3 +33,11 @@ export function fetchChatAPIProcess<T = any>(
     onDownloadProgress: params.onDownloadProgress,
   })
 }
+
+
+export function rejectApikey(apiKey:string){
+  return post({
+    url: '/keyLogin',
+    data: { apiKey },
+  })
+}

@@ -73,13 +73,16 @@ router.post('/config', async (req, res) => {
 router.post('/keyLogin', async (req, res) => {
 
   try {
-    const { key } = req.body as { key: string }
-    if(!key){
-      res.send(JSON.stringify({error:"key is null"}))
+    const { apiKey } = req.body as { apiKey: string }
+    if(!apiKey){
+      res.send(JSON.stringify({error:"apiKey is null"}))
       return
     }
-    let api = getApi(key)
-    keyMap.set(key,api);
+    if(!keyMap.get(apiKey)){
+      let api = getApi(apiKey)
+      keyMap.set(apiKey,api);
+    }
+    res.send({message:"success"})
   }
   catch (error) {
     res.send(error)

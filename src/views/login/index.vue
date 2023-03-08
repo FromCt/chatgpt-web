@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { reactive } from "vue";
 import { NCard, NForm, NFormItem, NInput, NButton } from "naive-ui";
 import { router } from '@/router'
 
-interface FormData {
-  username: string;
-  apiKey: string;
-}
-
-const formData = reactive({
+let formData = reactive({
   username: "",
   apiKey: "",
 });
@@ -40,7 +35,7 @@ const handleSubmit = () => {
   <div class="loign_content">
     <div class="login">
       <n-card>
-        <n-form ref="form" v-model="formData" label-placement="top">
+        <n-form v-model="formData" label-placement="top">
           <n-form-item v-bind="usernameFormItem">
             <n-input v-model:value="formData.username" placeholder="请输入用户名" />
           </n-form-item>

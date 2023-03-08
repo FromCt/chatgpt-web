@@ -1,380 +1,347 @@
 <script setup lang='ts'>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { NButton, NInput, useDialog } from 'naive-ui'
-import { Message } from './components'
-import { useScroll } from './hooks/useScroll'
-import { useChat } from './hooks/useChat'
-import { useCopyCode } from './hooks/useCopyCode'
-import { HoverButton, SvgIcon } from '@/components/common'
-import { useBasicLayout } from '@/hooks/useBasicLayout'
-import { useChatStore } from '@/store'
-import { fetchChatAPIProcess,rejectApikey } from '@/api'
-import { t } from '@/locales'
-import { router } from '@/router'
-import { userInfo } from 'os'
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRoute } from "vue-router";
+import { NButton, NInput, useDialog } from "naive-ui";
+import { Message } from "./components";
+import { useScroll } from "./hooks/useScroll";
+import { useChat } from "./hooks/useChat";
+import { useCopyCode } from "./hooks/useCopyCode";
+import { HoverButton, SvgIcon } from "@/components/common";
+import { useBasicLayout } from "@/hooks/useBasicLayout";
+import { useChatStore } from "@/store";
+import { fetchChatAPIProcess, rejectApikey } from "@/api";
+import { t } from "@/locales";
+import { router } from "@/router";
 
 const props = defineProps({
   userName: String,
-  likes: Number
-})
+  likes: Number,
+});
 
-
-let chatUserInfo =  localStorage.getItem("chatUserInfo")
-console.log("props===",props,chatUserInfo)
-if(!chatUserInfo){
-router.push({ name: 'login'})
-}else{
-  chatUserInfo = JSON.parse(chatUserInfo)
+let chatUserInfo = {
+  apiKey: "",
+};
+let chatUserInfostr = localStorage.getItem("chatUserInfo");
+console.log("props===", props, chatUserInfo);
+if (!chatUserInfostr) {
+  router.push({ name: "login" });
+} else {
+  chatUserInfo = JSON.parse(chatUserInfostr);
 }
 
+let controller = new AbortController();
 
-let controller = new AbortController()
+const route = useRoute();
+const dialog = useDialog();
 
-const route = useRoute()
-const dialog = useDialog()
+const chatStore = useChatStore();
 
-const chatStore = useChatStore()
+useCopyCode();
+const { isMobile } = useBasicLayout();
+const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } =
+  useChat();
+const { scrollRef, scrollToBottom } = useScroll();
 
-useCopyCode()
-const { isMobile } = useBasicLayout()
-const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
-const { scrollRef, scrollToBottom } = useScroll()
+console.log(route.params);
+const { uuid } = route.params as { uuid: string };
 
-console.log(route.params)
-const { uuid,name,apiKey } = route.params as { uuid: string,name:string,apiKey:string }
+const dataSources = computed(() => chatStore.getChatByUuid(+uuid));
+const conversationList = computed(() =>
+  dataSources.value.filter((item) => !item.inversion && !item.error)
+);
 
-
-const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
-const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !item.error)))
-
-const prompt = ref<string>('')
-const loading = ref<boolean>(false)
+const prompt = ref<string>("");
+const loading = ref<boolean>(false);
 
 function handleSubmit() {
-  onConversation()
+  onConversation();
 }
 
 async function onConversation() {
-  const message = prompt.value
+  const message = prompt.value;
 
-  if (loading.value)
-    return
+  if (loading.value) return;
 
-  if (!message || message.trim() === '')
-    return
+  if (!message || message.trim() === "") return;
 
-  controller = new AbortController()
+  controller = new AbortController();
 
-  addChat(
-    +uuid,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: message,
-      inversion: true,
-      error: false,
-      conversationOptions: null,
-      requestOptions: { prompt: message, options: null },
-    },
-  )
-  scrollToBottom()
+  addChat(+uuid, {
+    dateTime: new Date().toLocaleString(),
+    text: message,
+    inversion: true,
+    error: false,
+    conversationOptions: null,
+    requestOptions: { prompt: message, options: null },
+  });
+  scrollToBottom();
 
-  loading.value = true
-  prompt.value = ''
+  loading.value = true;
+  prompt.value = "";
 
-  let options: Chat.ConversationRequest = {}
-  const lastContext = conversationList.value[conversationList.value.length - 1]?.conversationOptions
+  let options: Chat.ConversationRequest = {};
+  const lastContext =
+    conversationList.value[conversationList.value.length - 1]
+      ?.conversationOptions;
 
-  if (lastContext)
-    options = { ...lastContext }
+  if (lastContext) options = { ...lastContext };
 
-  addChat(
-    +uuid,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: '',
-      loading: true,
-      inversion: false,
-      error: false,
-      conversationOptions: null,
-      requestOptions: { prompt: message, options: { ...options } },
-    },
-  )
-  scrollToBottom()
+  addChat(+uuid, {
+    dateTime: new Date().toLocaleString(),
+    text: "",
+    loading: true,
+    inversion: false,
+    error: false,
+    conversationOptions: null,
+    requestOptions: { prompt: message, options: { ...options } },
+  });
+  scrollToBottom();
 
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
-      options:{
+      options: {
         ...options,
-        apiKey:chatUserInfo.apiKey
+        apiKey: chatUserInfo.apiKey,
       },
       signal: controller.signal,
       onDownloadProgress: ({ event }) => {
-        const xhr = event.target
-        const { responseText } = xhr
+        const xhr = event.target;
+        const { responseText } = xhr;
         // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n')
-        let chunk = responseText
-        if (lastIndex !== -1)
-          chunk = responseText.substring(lastIndex)
+        const lastIndex = responseText.lastIndexOf("\n");
+        let chunk = responseText;
+        if (lastIndex !== -1) chunk = responseText.substring(lastIndex);
         try {
-          const data = JSON.parse(chunk)
-          updateChat(
-            +uuid,
-            dataSources.value.length - 1,
-            {
-              dateTime: new Date().toLocaleString(),
-              text: data.text ?? '',
-              inversion: false,
-              error: false,
-              loading: false,
-              conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-              requestOptions: { prompt: message, options: { ...options } },
+          const data = JSON.parse(chunk);
+          updateChat(+uuid, dataSources.value.length - 1, {
+            dateTime: new Date().toLocaleString(),
+            text: data.text ?? "",
+            inversion: false,
+            error: false,
+            loading: false,
+            conversationOptions: {
+              conversationId: data.conversationId,
+              parentMessageId: data.id,
             },
-          )
-          scrollToBottom()
-        }
-        catch (error) {
+            requestOptions: { prompt: message, options: { ...options } },
+          });
+          scrollToBottom();
+        } catch (error) {
           //
         }
       },
-    })
-  }
-  catch (error: any) {
-    const errorMessage = error?.message ?? t('common.wrong')
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message ?? t("common.wrong");
 
-    if (error.message === 'canceled') {
-      updateChatSome(
-        +uuid,
-        dataSources.value.length - 1,
-        {
-          loading: false,
-        },
-      )
-      scrollToBottom()
-      return
-    }
-
-    const currentChat = getChatByUuidAndIndex(+uuid, dataSources.value.length - 1)
-
-    if (currentChat?.text && currentChat.text !== '') {
-      updateChatSome(
-        +uuid,
-        dataSources.value.length - 1,
-        {
-          text: `${currentChat.text}\n[${errorMessage}]`,
-          error: false,
-          loading: false,
-        },
-      )
-      return
-    }
-
-    updateChat(
-      +uuid,
-      dataSources.value.length - 1,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: errorMessage,
-        inversion: false,
-        error: true,
+    if (error.message === "canceled") {
+      updateChatSome(+uuid, dataSources.value.length - 1, {
         loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      },
-    )
-    scrollToBottom()
-  }
-  finally {
-    loading.value = false
+      });
+      scrollToBottom();
+      return;
+    }
+
+    const currentChat = getChatByUuidAndIndex(
+      +uuid,
+      dataSources.value.length - 1
+    );
+
+    if (currentChat?.text && currentChat.text !== "") {
+      updateChatSome(+uuid, dataSources.value.length - 1, {
+        text: `${currentChat.text}\n[${errorMessage}]`,
+        error: false,
+        loading: false,
+      });
+      return;
+    }
+
+    updateChat(+uuid, dataSources.value.length - 1, {
+      dateTime: new Date().toLocaleString(),
+      text: errorMessage,
+      inversion: false,
+      error: true,
+      loading: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, options: { ...options } },
+    });
+    scrollToBottom();
+  } finally {
+    loading.value = false;
   }
 }
 
 async function onRegenerate(index: number) {
-  if (loading.value)
-    return
+  if (loading.value) return;
 
-  controller = new AbortController()
+  controller = new AbortController();
 
-  const { requestOptions } = dataSources.value[index]
+  const { requestOptions } = dataSources.value[index];
 
-  const message = requestOptions?.prompt ?? ''
+  const message = requestOptions?.prompt ?? "";
 
-  let options: Chat.ConversationRequest = {}
+  let options: Chat.ConversationRequest = {};
 
-  if (requestOptions.options)
-    options = { ...requestOptions.options }
+  if (requestOptions.options) options = { ...requestOptions.options };
 
-  loading.value = true
+  loading.value = true;
 
-  updateChat(
-    +uuid,
-    index,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: '',
-      inversion: false,
-      error: false,
-      loading: true,
-      conversationOptions: null,
-      requestOptions: { prompt: message, ...options },
-    },
-  )
+  updateChat(+uuid, index, {
+    dateTime: new Date().toLocaleString(),
+    text: "",
+    inversion: false,
+    error: false,
+    loading: true,
+    conversationOptions: null,
+    requestOptions: { prompt: message, ...options },
+  });
 
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
-      options:{
+      options: {
         ...options,
-        apiKey:chatUserInfo.apiKey
+        apiKey: chatUserInfo.apiKey,
       },
       signal: controller.signal,
       onDownloadProgress: ({ event }) => {
-        const xhr = event.target
-        const { responseText } = xhr
+        const xhr = event.target;
+        const { responseText } = xhr;
         // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n')
-        let chunk = responseText
-        if (lastIndex !== -1)
-          chunk = responseText.substring(lastIndex)
+        const lastIndex = responseText.lastIndexOf("\n");
+        let chunk = responseText;
+        if (lastIndex !== -1) chunk = responseText.substring(lastIndex);
         try {
-          const data = JSON.parse(chunk)
-          updateChat(
-            +uuid,
-            index,
-            {
-              dateTime: new Date().toLocaleString(),
-              text: data.text ?? '',
-              inversion: false,
-              error: false,
-              loading: false,
-              conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-              requestOptions: { prompt: message, ...options },
+          const data = JSON.parse(chunk);
+          updateChat(+uuid, index, {
+            dateTime: new Date().toLocaleString(),
+            text: data.text ?? "",
+            inversion: false,
+            error: false,
+            loading: false,
+            conversationOptions: {
+              conversationId: data.conversationId,
+              parentMessageId: data.id,
             },
-          )
-        }
-        catch (error) {
+            requestOptions: { prompt: message, ...options },
+          });
+        } catch (error) {
           //
         }
       },
-    })
-  }
-  catch (error: any) {
-    if (error.message === 'canceled') {
-      updateChatSome(
-        +uuid,
-        index,
-        {
-          loading: false,
-        },
-      )
-      return
+    });
+  } catch (error: any) {
+    if (error.message === "canceled") {
+      updateChatSome(+uuid, index, {
+        loading: false,
+      });
+      return;
     }
 
-    const errorMessage = error?.message ?? t('common.wrong')
+    const errorMessage = error?.message ?? t("common.wrong");
 
-    updateChat(
-      +uuid,
-      index,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: errorMessage,
-        inversion: false,
-        error: true,
-        loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, ...options },
-      },
-    )
-  }
-  finally {
-    loading.value = false
+    updateChat(+uuid, index, {
+      dateTime: new Date().toLocaleString(),
+      text: errorMessage,
+      inversion: false,
+      error: true,
+      loading: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, ...options },
+    });
+  } finally {
+    loading.value = false;
   }
 }
 
 function handleDelete(index: number) {
-  if (loading.value)
-    return
+  if (loading.value) return;
 
   dialog.warning({
-    title: t('chat.deleteMessage'),
-    content: t('chat.deleteMessageConfirm'),
-    positiveText: t('common.yes'),
-    negativeText: t('common.no'),
+    title: t("chat.deleteMessage"),
+    content: t("chat.deleteMessageConfirm"),
+    positiveText: t("common.yes"),
+    negativeText: t("common.no"),
     onPositiveClick: () => {
-      chatStore.deleteChatByUuid(+uuid, index)
+      chatStore.deleteChatByUuid(+uuid, index);
     },
-  })
+  });
 }
 
 function handleClear() {
-  if (loading.value)
-    return
+  if (loading.value) return;
 
   dialog.warning({
-    title: t('chat.clearChat'),
-    content: t('chat.clearChatConfirm'),
-    positiveText: t('common.yes'),
-    negativeText: t('common.no'),
+    title: t("chat.clearChat"),
+    content: t("chat.clearChatConfirm"),
+    positiveText: t("common.yes"),
+    negativeText: t("common.no"),
     onPositiveClick: () => {
-      chatStore.clearChatByUuid(+uuid)
+      chatStore.clearChatByUuid(+uuid);
     },
-  })
+  });
 }
 
 function handleEnter(event: KeyboardEvent) {
   if (!isMobile.value) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      handleSubmit()
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSubmit();
     }
   }
 }
 
 function handleStop() {
   if (loading.value) {
-    controller.abort()
-    loading.value = false
+    controller.abort();
+    loading.value = false;
   }
 }
 
 const placeholder = computed(() => {
-  if (isMobile.value)
-    return t('chat.placeholderMobile')
-  return t('chat.placeholder')
-})
+  if (isMobile.value) return t("chat.placeholderMobile");
+  return t("chat.placeholder");
+});
 
 const buttonDisabled = computed(() => {
-  return loading.value || !prompt.value || prompt.value.trim() === ''
-})
+  return loading.value || !prompt.value || prompt.value.trim() === "";
+});
 
 const wrapClass = computed(() => {
-  if (isMobile.value)
-    return ['pt-14', 'pb-16']
+  if (isMobile.value) return ["pt-14", "pb-16"];
 
-  return []
-})
+  return [];
+});
 
 const footerClass = computed(() => {
-  let classes = ['p-4']
+  let classes = ["p-4"];
   if (isMobile.value)
-    classes = ['p-2', 'pr-4', 'fixed', 'bottom-4', 'left-0', 'right-0', 'z-30', 'h-14', 'overflow-hidden']
-  return classes
-})
+    classes = [
+      "p-2",
+      "pr-4",
+      "fixed",
+      "bottom-4",
+      "left-0",
+      "right-0",
+      "z-30",
+      "h-14",
+      "overflow-hidden",
+    ];
+  return classes;
+});
 
 onMounted(() => {
-  scrollToBottom()
-  console.log("onMounted====",route.params)
-  rejectApikey(chatUserInfo.apiKey).then(res=>{
-    console.log(res)
-  })
-})
+  scrollToBottom();
+  console.log("onMounted====", route.params);
+  rejectApikey(chatUserInfo.apiKey).then((res) => {
+    console.log(res);
+  });
+});
 
 onUnmounted(() => {
-  if (loading.value)
-    controller.abort()
-})
+  if (loading.value) controller.abort();
+});
 </script>
 
 <template>
@@ -387,7 +354,9 @@ onUnmounted(() => {
         :class="[isMobile ? 'p-2' : 'p-4']"
       >
         <template v-if="!dataSources.length">
-          <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
+          <div
+            class="flex items-center justify-center mt-4 text-center text-neutral-300"
+          >
             <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
             <span>好久不见~</span>
           </div>
@@ -431,7 +400,11 @@ onUnmounted(() => {
           :placeholder="placeholder"
           @keypress="handleEnter"
         />
-        <NButton type="primary" :disabled="buttonDisabled" @click="handleSubmit">
+        <NButton
+          type="primary"
+          :disabled="buttonDisabled"
+          @click="handleSubmit"
+        >
           <template #icon>
             <span class="dark:text-black">
               <SvgIcon icon="ri:send-plane-fill" />

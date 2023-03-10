@@ -1,11 +1,9 @@
 import * as dotenv from 'dotenv'
 import 'isomorphic-fetch'
 import type { ChatMessage, SendMessageOptions } from 'chatgpt'
-import { ChatGPTAPI, ChatGPTUnofficialProxyAPI } from 'chatgpt'
-import { SocksProxyAgent } from 'socks-proxy-agent'
-import fetch from 'node-fetch'
+import { ChatGPTAPI } from 'chatgpt'
 import { sendResponse } from '../utils'
-import type { ApiModel, ChatContext, ChatGPTAPIOptions, ChatGPTUnofficialProxyAPIOptions, ModelConfig } from '../types'
+import type { ChatContext, ChatGPTAPIOptions, ModelConfig } from '../types'
 
 dotenv.config()
 const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT_MS : 30 * 1000
@@ -55,20 +53,23 @@ const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT
 //   }
 // })()
 
-async function getApi(apiKey:any) {
-  
+const keyMap = new Map()
+
+async function getApi(apiKey: any) {
   const options: ChatGPTAPIOptions = {
-    apiKey: apiKey,
+    apiKey,
     debug: false,
   }
 
   const api = new ChatGPTAPI({ ...options })
+  // console.log(api)
+  keyMap.set(apiKey, api)
   return api
 }
 
 async function chatReply(
   message: string,
-  api:ChatGPTAPI,
+  api: ChatGPTAPI,
   lastContext?: { conversationId?: string; parentMessageId?: string },
 ) {
   if (!message)
@@ -91,7 +92,7 @@ async function chatReply(
 
 async function chatReplyProcess(
   message: string,
-  api:ChatGPTAPI,
+  apiKey: string,
   lastContext?: { conversationId?: string; parentMessageId?: string },
   process?: (chat: ChatMessage) => void,
 ) {
@@ -103,7 +104,8 @@ async function chatReplyProcess(
 
     if (lastContext)
       options = { ...lastContext }
-
+    const api = keyMap.get(apiKey)
+    // console.log(api)
     const response = await api.sendMessage(message, {
       ...options,
       onProgress: (partialResponse) => {
@@ -122,7 +124,7 @@ async function chatConfig() {
   return sendResponse({
     type: 'Success',
     data: {
-      apiModel:"ChatGPTAPI",
+      apiModel: 'ChatGPTAPI',
       reverseProxy: process.env.API_REVERSE_PROXY,
       timeoutMs,
       socksProxy: (process.env.SOCKS_PROXY_HOST && process.env.SOCKS_PROXY_PORT) ? (`${process.env.SOCKS_PROXY_HOST}:${process.env.SOCKS_PROXY_PORT}`) : '-',
@@ -132,4 +134,4 @@ async function chatConfig() {
 
 export type { ChatContext, ChatMessage }
 
-export { chatReply, chatReplyProcess, chatConfig,getApi }
+export { chatReply, chatReplyProcess, chatConfig, getApi }

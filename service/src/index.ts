@@ -1,6 +1,6 @@
 import express from 'express'
 import type { ChatContext, ChatMessage } from './chatgpt'
-import { chatConfig, chatReply, chatReplyProcess,getApi } from './chatgpt'
+import { chatConfig, chatReply, chatReplyProcess, getApi } from './chatgpt'
 
 const app = express()
 const router = express.Router()
@@ -19,14 +19,14 @@ app.all('*', (_, res, next) => {
 
 router.post('/chat', async (req, res) => {
   try {
-    const { prompt, options = {apiKey:""} } = req.body as { prompt: string; options?: ChatContext }
-    const { apiKey } = options;
-    const api = keyMap.get(apiKey);
-    if(!apiKey){
-      res.send(JSON.stringify({error:"key is null"}))
-      return 
+    const { prompt, options = { apiKey: '' } } = req.body as { prompt: string; options?: ChatContext }
+    const { apiKey } = options
+    const api = keyMap.get(apiKey)
+    if (!apiKey) {
+      res.send(JSON.stringify({ error: 'key is null' }))
+      return
     }
-    const response = await chatReply(prompt,api, options)
+    const response = await chatReply(prompt, api, options)
     res.send(response)
   }
   catch (error) {
@@ -38,16 +38,15 @@ router.post('/chat-process', async (req, res) => {
   res.setHeader('Content-type', 'application/octet-stream')
 
   try {
-    const { prompt, options = {apiKey:""} } = req.body as { prompt: string; options?: ChatContext }
-    const { apiKey } = options;
-    const api = keyMap.get(apiKey);
-    if(!apiKey){
-      res.send(JSON.stringify({error:"key is null"}))
-      return 
+    const { prompt, options = { apiKey: '' } } = req.body as { prompt: string; options?: ChatContext }
+    const { apiKey } = options
+    if (!apiKey) {
+      res.send(JSON.stringify({ error: 'key is null' }))
+      return
     }
 
     let firstChunk = true
-    await chatReplyProcess(prompt,api, options, (chat: ChatMessage) => {
+    await chatReplyProcess(prompt, apiKey, options, (chat: ChatMessage) => {
       res.write(firstChunk ? JSON.stringify(chat) : `\n${JSON.stringify(chat)}`)
       firstChunk = false
     })
@@ -71,37 +70,36 @@ router.post('/config', async (req, res) => {
 })
 
 router.post('/keyLogin', async (req, res) => {
-
   try {
     const { apiKey } = req.body as { apiKey: string }
-    if(!apiKey){
-      res.send(JSON.stringify({error:"apiKey is null"}))
+    if (!apiKey) {
+      res.send(JSON.stringify({ error: 'apiKey is null' }))
       return
     }
-    if(!keyMap.get(apiKey)){
-      let api = getApi(apiKey)
-      keyMap.set(apiKey,api);
+    if (!keyMap.get(apiKey)) {
+      const api = getApi(apiKey)
+      keyMap.set(apiKey, api)
     }
-    res.send({message:"success"})
+    res.send({ message: 'success' })
   }
   catch (error) {
     res.send(error)
   }
 })
 
-router.get('/keyList',async (req, res)=>{
+router.get('/keyList', async (req, res) => {
   try {
     const { user } = req.query as { user: string }
-    if(user==="admin_ct"){
-      let arr = [...keyMap].map(item=>{
-        return item+"t"
-      });
-      
+    if (user === 'admin_ct') {
+      const arr = [...keyMap].map((item) => {
+        return `${item}t`
+      })
+
       const jsonStr = JSON.stringify(arr)
       res.send(jsonStr)
-
-    }else{
-      res.send(JSON.stringify({error:"nothing"}))
+    }
+    else {
+      res.send(JSON.stringify({ error: 'nothing' }))
     }
   }
   catch (error) {

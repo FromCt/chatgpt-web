@@ -19,7 +19,7 @@ import { t } from '@/locales'
 
 let controller = new AbortController()
 const userInfo = JSON.parse(localStorage.getItem('chatUserInfo') || '{}')
-const { apiKey, username } = userInfo
+const { apiKey } = userInfo
 
 const openLongReply = import.meta.env.VITE_GLOB_OPEN_LONG_REPLY === 'true'
 

@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv'
 import 'isomorphic-fetch'
-import type { ChatGPTAPIOptions, ChatMessage, SendMessageOptions } from 'chatgpt'
+import type { ChatGPTAPIOptions, ChatGPTUnofficialProxyAPI, ChatMessage, SendMessageOptions } from 'chatgpt'
 import { ChatGPTAPI } from 'chatgpt'
 import { SocksProxyAgent } from 'socks-proxy-agent'
 import httpsProxyAgent from 'https-proxy-agent'
@@ -25,67 +25,73 @@ const ErrorCodeMessage: Record<string, string> = {
 
 const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT_MS : 30 * 1000
 const disableDebug: boolean = process.env.OPENAI_API_DISABLE_DEBUG === 'true'
-
+let options: ChatGPTAPIOptions
 let apiModel: ApiModel
+let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 
-apiModel = 'ChatGPTAPI'
-// if (!process.env.OPENAI_API_KEY && !process.env.OPENAI_ACCESS_TOKEN)
-//   throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
-// let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
+(async () => {
+  // More Info: https://github.com/transitive-bullshit/chatgpt-api
 
-// To use ESM in CommonJS, you can use a dynamic import
-// (async () => {
+  if (isNotEmptyString(process.env.OPENAI_API_KEY)) {
+    const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
+    const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
+    const model = isNotEmptyString(OPENAI_API_MODEL) ? OPENAI_API_MODEL : 'gpt-3.5-turbo'
 
-//   if (process.env.OPENAI_API_KEY) {
-//     const options: ChatGPTAPIOptions = {
-//       apiKey: process.env.OPENAI_API_KEY,
-//       debug: false,
-//     }
+    options = {
+      apiKey: process.env.OPENAI_API_KEY,
+      completionParams: { model },
+      debug: !disableDebug,
+    }
 
-//     api = new ChatGPTAPI({ ...options })
-//     apiModel = 'ChatGPTAPI'
-//   }
-//   else {
-//     const options: ChatGPTUnofficialProxyAPIOptions = {
-//       accessToken: process.env.OPENAI_ACCESS_TOKEN,
-//       debug: false,
-//     }
+    // increase max token limit if use gpt-4
+    if (model.toLowerCase().includes('gpt-4')) {
+      // if use 32k model
+      if (model.toLowerCase().includes('32k')) {
+        options.maxModelTokens = 32768
+        options.maxResponseTokens = 8192
+      }
+      else {
+        options.maxModelTokens = 8192
+        options.maxResponseTokens = 2048
+      }
+    }
 
-//     if (process.env.SOCKS_PROXY_HOST && process.env.SOCKS_PROXY_PORT) {
-//       const agent = new SocksProxyAgent({
-//         hostname: process.env.SOCKS_PROXY_HOST,
-//         port: process.env.SOCKS_PROXY_PORT,
-//       })
-//       options.fetch = (url, options) => {
-//         return fetch(url, { agent, ...options })
-//       }
-//     }
+    if (isNotEmptyString(OPENAI_API_BASE_URL))
+      options.apiBaseUrl = `${OPENAI_API_BASE_URL}/v1`
+    setupProxy(options)
+    apiModel = 'ChatGPTAPI'
+  }
+  else {
+    const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
+    const options: ChatGPTUnofficialProxyAPIOptions = {
+      accessToken: process.env.OPENAI_ACCESS_TOKEN,
+      debug: !disableDebug,
+    }
 
-//     if (process.env.API_REVERSE_PROXY)
-//       options.apiReverseProxyUrl = process.env.API_REVERSE_PROXY
+    if (isNotEmptyString(OPENAI_API_MODEL))
+      options.model = OPENAI_API_MODEL
 
-//     api = new ChatGPTUnofficialProxyAPI({
-//       accessToken: process.env.OPENAI_ACCESS_TOKEN,
-//       ...options,
-//     })
-//     apiModel = 'ChatGPTUnofficialProxyAPI'
-//   }
-// })()
+    options.apiReverseProxyUrl = isNotEmptyString(process.env.API_REVERSE_PROXY)
+      ? process.env.API_REVERSE_PROXY
+      : 'https://bypass.churchless.tech/api/conversation'
+
+    setupProxy(options)
+
+    apiModel = 'ChatGPTUnofficialProxyAPI'
+  }
+})()
 
 const keyMap = new Map()
 
 async function getApi(apiKey: any) {
-  const options: ChatGPTAPIOptions = {
-    apiKey,
-    debug: false,
-  }
-
-  const api = new ChatGPTAPI({ ...options })
+  console.log(options)
+  const api = new ChatGPTAPI({ ...options, apiKey })
   // console.log(api)
   keyMap.set(apiKey, api)
   return api
 }
 
+// 主线已废弃
 async function chatReply(
   message: string,
   api: ChatGPTAPI,
@@ -98,8 +104,8 @@ async function chatReply(
     const options: SendMessageOptions = { timeoutMs }
 
     if (apiModel === 'ChatGPTAPI') {
-      if (isNotEmptyString(systemMessage))
-        options.systemMessage = systemMessage
+      // if (isNotEmptyString(systemMessage))
+      //   options.systemMessage = systemMessage
     }
 
     const response = await api.sendMessage(message, { ...options })
@@ -125,8 +131,13 @@ async function chatReplyProcess(
 
     if (lastContext)
       options = { ...lastContext }
+
+    // console.log(apiKey, keyMap)
     const api = keyMap.get(apiKey)
-    // console.log(api)
+    if (!api) {
+      getApi(apiKey)
+      return sendResponse({ type: 'Fail', message: 'API Key is invalid' })
+    }
     const response = await api.sendMessage(message, {
       ...options,
       onProgress: (partialResponse) => {

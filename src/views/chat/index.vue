@@ -18,6 +18,8 @@ import { fetchChatAPIProcess } from '@/api'
 import { t } from '@/locales'
 
 let controller = new AbortController()
+const userInfo = JSON.parse(localStorage.getItem('chatUserInfo') || '{}')
+const { apiKey, username } = userInfo
 
 const openLongReply = import.meta.env.VITE_GLOB_OPEN_LONG_REPLY === 'true'
 
@@ -111,7 +113,7 @@ async function onConversation() {
     const fetchChatAPIOnce = async () => {
       await fetchChatAPIProcess<Chat.ConversationResponse>({
         prompt: message,
-        options,
+        options: { ...options, apiKey },
         signal: controller.signal,
         onDownloadProgress: ({ event }) => {
           const xhr = event.target
@@ -242,7 +244,7 @@ async function onRegenerate(index: number) {
     const fetchChatAPIOnce = async () => {
       await fetchChatAPIProcess<Chat.ConversationResponse>({
         prompt: message,
-        options,
+        options: { ...options, apiKey },
         signal: controller.signal,
         onDownloadProgress: ({ event }) => {
           const xhr = event.target

@@ -189,7 +189,7 @@ docker build --no-cache -t chatgpt-ct .
 docker run --name chatgpt-web --rm -it -p 127.0.0.1:3002:3002 --env OPENAI_API_KEY=fk188954-6NA5vOiJIOnjepuEXpAFN1yIGAgpIaeC chatgpt-web
 
 # 后台运行
-docker run --name ct6 -d -p 127.0.0.1:3002:3002 --env OPENAI_API_KEY=sk-fk188954-6NA5vOiJIOnjepuEXpAFN1yIGAgpIaeC --env OPENAI_API_BASE_URL=https://openai.api2d.net chatgpt-ct
+docker run --name ct -d -p 127.0.0.1:3002:3002 --env OPENAI_API_KEY=sk-fk188954-6NA5vOiJIOnjepuEXpAFN1yIGAgpIaeC --env OPENAI_API_BASE_URL=https://openai.api2d.net chatgpt-ct
 
 curl http://127.0.0.1:3002
 

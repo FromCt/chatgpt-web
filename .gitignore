@@ -29,3 +29,4 @@ coverage
 
 # Environment variables files
 /service/.env
+service/pnpm-lock.yaml

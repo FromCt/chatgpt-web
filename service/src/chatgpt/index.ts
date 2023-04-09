@@ -81,14 +81,43 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
   }
 })()
 
+const baseUrlMap = new Map([
+  [/^sk-.*/, "https://api.openai.com/v1"], // OpenAI API key
+  [/^fk.*/, "https://openai.api2d.net/v1"], // api2d.net API key
+  // Add other key formats and URLs here
+]);
+
+function getBaseUrlByKey(key) {
+  for (const [regex, url] of baseUrlMap) {
+    if (regex.test(key)) {
+      global.console.log(url)
+      return url;
+    }
+  }
+  // Handle unknown key formats here
+  global.console.warn(`Unknown key format: ${key}`);
+  return "https://api.openai.com";// Default to OpenAI API
+}
+
 const keyMap = new Map()
 
-async function getApi(apiKey: any) {
-  console.log(options)
+async function createApi(apiKey: any) {
+  //根据key获取baseurl
+  global.console.log("get api by key")
+  options.apiBaseUrl = getBaseUrlByKey(apiKey)
+  global.console.log(options)
   const api = new ChatGPTAPI({ ...options, apiKey })
-  // console.log(api)
+  // global.console.log(api)
   keyMap.set(apiKey, api)
   return api
+}
+async function getApi(apiKey: any) {
+  if (keyMap.has(apiKey)) {
+    return keyMap.get(apiKey)
+  } else {
+    const api = await createApi(apiKey)
+    return api
+  }
 }
 
 // 主线已废弃
@@ -132,12 +161,9 @@ async function chatReplyProcess(
     if (lastContext)
       options = { ...lastContext }
 
-    // console.log(apiKey, keyMap)
-    const api = keyMap.get(apiKey)
-    if (!api) {
-      getApi(apiKey)
-      return sendResponse({ type: 'Fail', message: 'API Key is invalid' })
-    }
+    //获取并创建key
+    const apiPromise = getApi(apiKey)
+    const api = await apiPromise // 等待 Promise 对象被解析
     const response = await api.sendMessage(message, {
       ...options,
       onProgress: (partialResponse) => {

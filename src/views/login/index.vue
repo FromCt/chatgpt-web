@@ -9,7 +9,7 @@ let formData = reactive({
 });
 
 const usernameFormItem = {
-  label: "用户名",
+  label: "昵称",
   required: true,
 };
 
@@ -37,12 +37,12 @@ const handleSubmit = () => {
       <n-card>
         <n-form v-model="formData" label-placement="top">
           <n-form-item v-bind="usernameFormItem">
-            <n-input v-model:value="formData.username" placeholder="请输入用户名" />
+            <n-input v-model:value="formData.username" placeholder="昵称随意填写，仅显示使用" />
           </n-form-item>
           <n-form-item v-bind="passwordFormItem">
             <n-input
               v-model:value="formData.apiKey"
-              placeholder="请输入key"
+              placeholder="请输入有效的Key"
             />
           </n-form-item>
           <n-form-item>
